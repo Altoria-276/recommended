@@ -7,4 +7,6 @@ python main.py \
   --max_rating 100 \
   --lr 0.0005 \
   --reg 0.1 \
-  --grad_clip 100
+  --grad_clip 100 \
+  --factors 40 \
+  --epochs 500
