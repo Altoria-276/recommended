@@ -1,14 +1,32 @@
-def count_dataset_stats(file_path):
-    user_ids = set()
-    item_ids = set()
-    total_ratings = 0
-    max_user_id = 0
-    max_item_id = 0
+def count_dataset_stats(file_path: str) -> tuple[int, int, int, int, int]:
+    """
+    统计数据集的基本信息
+
+    参数:
+        file_path: 数据文件路径
+
+    返回:
+        包含以下统计信息的元组:
+            - 用户数量
+            - 物品数量
+            - 总评分记录数
+            - 最大用户ID
+            - 最大物品ID
+            - 最低评分
+            - 最高评分
+    """
+    user_ids: set[int] = set()
+    item_ids: set[int] = set()
+    total_ratings: int = 0
+    max_user_id: int = 0
+    max_item_id: int = 0
+    min_rating: float = float("inf")
+    max_rating: float = float("-inf")
 
     with open(file_path, "r") as f:
         while True:
             # 读取用户行
-            user_line = f.readline().strip()
+            user_line: str = f.readline().strip()
             if not user_line:  # 文件结束
                 break
 
@@ -16,9 +34,12 @@ def count_dataset_stats(file_path):
             if "|" not in user_line:
                 continue
 
+            user_id_str: str
+            num_ratings_str: str
             user_id_str, num_ratings_str = user_line.split("|")
-            user_id = int(user_id_str)
-            num_ratings = int(num_ratings_str)
+
+            user_id: int = int(user_id_str)
+            num_ratings: int = int(num_ratings_str)
 
             user_ids.add(user_id)
             if user_id > max_user_id:
@@ -28,13 +49,14 @@ def count_dataset_stats(file_path):
 
             # 处理该用户的评分行
             for _ in range(num_ratings):
-                rating_line = f.readline().strip()
+                rating_line: str = f.readline().strip()
                 if not rating_line:
                     break
 
                 # 提取物品ID
-                parts = rating_line.split()
-                item_id = int(parts[0])
+                parts: list[str] = rating_line.split()
+                item_id: int = int(parts[0])
+
                 item_ids.add(item_id)
                 if item_id > max_item_id:
                     max_item_id = item_id
@@ -49,7 +71,13 @@ if __name__ == "__main__":
         print("使用方法: python stats.py <数据文件路径>")
         sys.exit(1)
 
-    file_path = sys.argv[1]
+    file_path: str = sys.argv[1]
+    num_users: int
+    num_items: int
+    num_ratings: int
+    max_user: int
+    max_item: int
+
     num_users, num_items, num_ratings, max_user, max_item = count_dataset_stats(file_path)
 
     print(f"用户数量: {num_users}")
