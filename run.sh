@@ -1,4 +1,4 @@
-python main.py \
+nohup python main.py \
   --train data/train.txt \
   --test data/test.txt \
   --output results/Predictions.txt \
@@ -9,4 +9,5 @@ python main.py \
   --reg 0.1 \
   --grad_clip 100 \
   --factors 40 \
-  --epochs 500
+  --epochs 1 \
+  2>&1 > output.log &
