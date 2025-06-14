@@ -14,7 +14,7 @@ Start-Process -NoNewWindow -FilePath python -ArgumentList @(
     "--reg", "0.1",
     "--grad_clip", "100",
     "--factors", "40",
-    "--epochs", "1"
+    "--epochs", "500"
 ) -RedirectStandardOutput "output.log" -RedirectStandardError "error.log"
 
-Write-Host "任务已在后台启动，日志输出到 output.log 和 error.log"
+Write-Host "Output: output.log & error.log"
