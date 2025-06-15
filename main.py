@@ -11,7 +11,7 @@
 4. 输出训练统计信息(时间、内存、RMSE等)
 
 使用示例:
-    python 推荐系统.py --train data/Train.txt --test data/Test.txt
+    python main.py --train data/Train.txt --test data/Test.txt
 """
 
 import numpy as np
