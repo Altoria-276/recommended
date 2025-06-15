@@ -14,7 +14,8 @@ Start-Process -NoNewWindow -FilePath python -ArgumentList @(
     "--reg", "0.1",
     "--grad_clip", "100",
     "--factors", "40",
-    "--epochs", "500"
+    "--epochs", "500",
+    "--moniter"
 ) -RedirectStandardOutput "output.log" -RedirectStandardError "error.log"
 
 Write-Host "Output: output.log & error.log"
