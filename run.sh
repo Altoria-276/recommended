@@ -10,4 +10,5 @@ nohup python main.py \
   --grad_clip 100 \
   --factors 40 \
   --epochs 1 \
+  --model NeuralMF 
   2>&1 > output.log &

@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 # 导入模型
-from models import BiasSVD, BaseModel  # 导入解耦后的模型
+from models import BiasSVD, BaseModel, NeuralMF  # 导入解耦后的模型
 
 # 导入监控工具
 from moniter import monitor_function  # 假设监控代码保存在 monitor_util.py
@@ -138,7 +138,9 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
 
     # 根据参数选择模型
     if args.model == "bias_svd":
-        ModelClass = BiasSVD
+        ModelClass = BiasSVD 
+    elif args.model == 'NeuralMF': 
+        ModelClass = NeuralMF 
     else:
         raise ValueError(f"未知模型类型: {args.model}")
 
@@ -186,7 +188,7 @@ def main() -> None:
     parser.add_argument("--stats", type=str, default="./results/training_stats.txt")
 
     # 模型选择
-    parser.add_argument("--model", type=str, default="bias_svd", choices=["bias_svd"], help="选择使用的模型 (默认: bias_svd)")
+    parser.add_argument("--model", type=str, default="bias_svd", help="选择使用的模型 (默认: bias_svd)")
 
     # 模型参数
     parser.add_argument("--factors", type=int, default=20)
