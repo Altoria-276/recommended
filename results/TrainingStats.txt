@@ -1,6 +1,6 @@
 ===== 训练统计信息 =====
 
-模型: LightGCN
+模型: NGCF
 训练文件: data/train.txt
 测试文件: data/test.txt
 输出文件: results/Predictions.txt
@@ -16,17 +16,17 @@
 最大评分: 100.0
 
 ===== 性能指标 =====
-总训练时间: 39.98 秒
-平均每轮时间: 39.98 秒
+总训练时间: 40.84 秒
+平均每轮时间: 40.84 秒
 峰值内存使用: 0.00 MB
-最终 Train RMSE: 72.9175
-最小 Train RMSE: 72.9175
-最终 Val RMSE: 71.7815
-最小 Val RMSE: 71.7815
+最终 Train RMSE: 72.9179
+最小 Train RMSE: 72.9179
+最终 Val RMSE: 71.7816
+最小 Val RMSE: 71.7816
 
 ===== RMSE 历史记录 =====
 Epoch,TrainRMSE,ValRMSE,TestRMSE
-1,72.9175,71.7815,nan
+1,72.9179,71.7816,nan
 
 ===== 系统信息 =====
 操作系统: Windows 10

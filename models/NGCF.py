@@ -8,7 +8,7 @@ from tqdm import trange
 from typing import Dict, List, Tuple, Optional
 import pandas as pd
 
-class LightGCN(BaseModel):
+class NGCF(BaseModel):
     def __init__(
         self,
         n_factors: int = 64,
@@ -21,8 +21,7 @@ class LightGCN(BaseModel):
         rating_scale: Tuple[float, float] = (0, 100),
     ):
         super().__init__()
-        self.model_name = "LightGCN"
-        # 超参数
+        self.model_name = "NGCF"
         self.n_factors = n_factors
         self.n_layers = n_layers
         self.lr = lr
@@ -32,18 +31,20 @@ class LightGCN(BaseModel):
         self.grad_clip = grad_clip
         self.rating_scale = rating_scale
 
-        # id 映射
         self.user_map: Dict[str, int] = {}
         self.item_map: Dict[str, int] = {}
         self.inv_user_map: Dict[int, str] = {}
         self.inv_item_map: Dict[int, str] = {}
 
-        # 全局统计
-        self.global_mean = 0.0
+        self.global_mean: float = 0.0
         self.user_embeddings: np.ndarray = np.array([])
         self.item_embeddings: np.ndarray = np.array([])
 
-        # 训练历史和资源记录
+        self.W1: List[np.ndarray] = []
+        self.W2: List[np.ndarray] = []
+        self.b1: List[np.ndarray] = []
+        self.b2: List[np.ndarray] = []
+
         self.rmse_history: List[float] = []
         self.val_rmse_history: List[float] = []
         self.test_rmse_history: List[float] = []
@@ -83,7 +84,6 @@ class LightGCN(BaseModel):
         start_time = time.time()
         start_mem = self.get_process_memory()
 
-        # 构建映射
         self.user_map = {u: idx for idx, u in enumerate(train_data['user'].unique())}
         self.item_map = {i: idx for idx, i in enumerate(train_data['item'].unique())}
         self.inv_user_map = {v: k for k, v in self.user_map.items()}
@@ -91,11 +91,9 @@ class LightGCN(BaseModel):
         n_users, n_items = len(self.user_map), len(self.item_map)
         self.global_mean = train_data['rating'].mean()
 
-        # 初始化嵌入
         self.user_embeddings = np.random.normal(0, 0.01, (n_users, self.n_factors))
         self.item_embeddings = np.random.normal(0, 0.01, (n_items, self.n_factors))
 
-        # 构建邻接表
         adj: List[List[int]] = [[] for _ in range(n_users + n_items)]
         for _, row in train_data.iterrows():
             u_idx = self.user_map[row['user']]
@@ -103,24 +101,30 @@ class LightGCN(BaseModel):
             adj[u_idx].append(n_users + i_idx)
             adj[n_users + i_idx].append(u_idx)
 
-        epoch_bar = trange(self.n_epochs, desc="训练进度", disable=not self.verbose)
-        # 训练循环
+        for _ in range(self.n_layers):
+            self.W1.append(np.random.normal(0, 0.01, (self.n_factors, self.n_factors)))
+            self.W2.append(np.random.normal(0, 0.01, (self.n_factors, self.n_factors)))
+            self.b1.append(np.zeros(self.n_factors))
+            self.b2.append(np.zeros(self.n_factors))
+
+        epoch_bar = trange(self.n_epochs, desc='训练进度', disable=not self.verbose)
         for epoch in epoch_bar:
-            # 图卷积传播
             emb = np.concatenate([self.user_embeddings, self.item_embeddings], axis=0)
-            emb_layers = [emb]
-            for _ in range(self.n_layers):
+            layer_embs = [emb]
+            for l in range(self.n_layers):
                 next_emb = np.zeros_like(emb)
                 for idx, nbrs in enumerate(adj):
                     if nbrs:
-                        next_emb[idx] = np.mean(emb[nbrs], axis=0)
+                        neigh_mean = np.mean(emb[nbrs], axis=0)
+                        sum_part = emb[idx] @ self.W1[l] + neigh_mean @ self.W1[l]
+                        bi_part = emb[idx] * neigh_mean @ self.W2[l]
+                        next_emb[idx] = np.maximum(0, sum_part + bi_part + self.b1[l] + self.b2[l])
                 emb = next_emb
-                emb_layers.append(emb)
-            final_emb = np.mean(emb_layers, axis=0)
+                layer_embs.append(emb)
+            final_emb = np.mean(layer_embs, axis=0)
             self.user_embeddings = final_emb[:n_users]
             self.item_embeddings = final_emb[n_users:]
 
-            # 评分回归梯度
             grad_u = np.zeros_like(self.user_embeddings)
             grad_i = np.zeros_like(self.item_embeddings)
             for _, row in train_data.iterrows():
@@ -132,13 +136,12 @@ class LightGCN(BaseModel):
                 grad_u[u_idx] += err * self.item_embeddings[i_idx] + self.reg * self.user_embeddings[u_idx]
                 grad_i[i_idx] += err * self.user_embeddings[u_idx] + self.reg * self.item_embeddings[i_idx]
 
-            # 梯度裁剪与更新
             grad_u = np.clip(grad_u, -self.grad_clip, self.grad_clip)
             grad_i = np.clip(grad_i, -self.grad_clip, self.grad_clip)
             self.user_embeddings -= self.lr * grad_u
             self.item_embeddings -= self.lr * grad_i
 
-            # 每轮评估
+            # 记录指标
             train_rmse = self._evaluate(train_data)
             self.rmse_history.append(train_rmse)
             postfix = {"TrainRMSE": f"{train_rmse:.4f}"}
@@ -152,7 +155,6 @@ class LightGCN(BaseModel):
                 postfix["TestRMSE"] = f"{test_rmse:.4f}"
             epoch_bar.set_postfix(postfix)
 
-        # 记录资源消耗
         self.training_time = time.time() - start_time
         self.mem_usage = self.get_process_memory() - start_mem
 

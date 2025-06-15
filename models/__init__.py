@@ -4,6 +4,11 @@ from .BaseModel import BaseModel
 from .BiasSVD import BiasSVD
 from .NeuralMF import NeuralMF 
 from .LightGCN import LightGCN 
+from .SVDpp import SVDpp 
+from .NGCF import NGCF 
+from .NeuMF import NeuMF 
+from .VAE_CF import VAE_CF 
+from .BPRMF import BPRMF 
 # 可选：添加其他模型导入
 # from .AnotherModel import AnotherModel
 
@@ -11,6 +16,12 @@ from .LightGCN import LightGCN
 __all__ = [
     "BaseModel",
     "BiasSVD", 
-    "NeuralMF"
+    "NeuralMF", 
+    "LightGCN", 
+    "SVDpp", 
+    "BPRMF", 
+    "NGCF", 
+    "NeuMF", 
+    "VAE_CF"
     # 'AnotherModel',
 ]
