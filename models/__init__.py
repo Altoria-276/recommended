@@ -3,6 +3,7 @@
 from .BaseModel import BaseModel
 from .BiasSVD import BiasSVD
 from .NeuralMF import NeuralMF 
+from .LightGCN import LightGCN 
 # 可选：添加其他模型导入
 # from .AnotherModel import AnotherModel
 

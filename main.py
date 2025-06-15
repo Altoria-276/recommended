@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 # 导入模型
-from models import BiasSVD, BaseModel, NeuralMF  # 导入解耦后的模型
+from models import BiasSVD, BaseModel, NeuralMF, LightGCN  # 导入解耦后的模型
 
 # 导入监控工具
 from moniter import monitor_function  # 假设监控代码保存在 monitor_util.py
@@ -141,6 +141,8 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
         ModelClass = BiasSVD 
     elif args.model == 'NeuralMF': 
         ModelClass = NeuralMF 
+    elif args.model == 'LightGCN': 
+        ModelClass = LightGCN 
     else:
         raise ValueError(f"未知模型类型: {args.model}")
 
