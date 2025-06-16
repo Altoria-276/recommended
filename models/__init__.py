@@ -5,6 +5,7 @@ from .BiasSVD import BiasSVD
 from .NeuralMF import NeuralMF 
 from .LightGCN import LightGCN 
 from .SVDpp import SVDpp 
+# from .SVDppp import SVDppp 
 from .NGCF import NGCF 
 from .NeuMF import NeuMF 
 from .VAE_CF import VAE_CF 
@@ -19,6 +20,7 @@ __all__ = [
     "NeuralMF", 
     "LightGCN", 
     "SVDpp", 
+    "SVDppp", 
     "BPRMF", 
     "NGCF", 
     "NeuMF", 
