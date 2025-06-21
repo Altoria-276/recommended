@@ -9,7 +9,7 @@ from typing import Any, Callable, Tuple
 class Monitor:
     """内存监控类，用于实时监控进程内存使用情况"""
 
-    def __init__(self, interval: float = 0.1):
+    def __init__(self, interval: float = 0.01):
         """
         初始化内存监控器
 

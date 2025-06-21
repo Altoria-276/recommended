@@ -9,11 +9,11 @@
             "name": "Python 调试程序: 包含参数的当前文件",
             "type": "debugpy",
             "request": "launch",
-            "program": "main_std.py",
+            "program": "main.py",
             "console": "integratedTerminal",
             "args": ["--train","data/train.txt","--test","data/test.txt","--output","results/Predictions.txt", 
             "--stats","results/TrainingStats.txt","--min_rating","0","--max_rating","100","--lr","0.0005", 
-            "--reg","0.1","--grad_clip","100","--factors","40","--epochs","100"]
+            "--reg","0.1","--grad_clip","100","--factors","40","--epochs","100","--model","SVD"]
         }
     ]
 }

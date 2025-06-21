@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 # 导入模型
-from models import BiasSVD, BaseModel, NeuralMF, LightGCN, SVDpp, BPRMF, NGCF, NeuMF, VAE_CF # , SVDppp # 导入解耦后的模型
+from models import BiasSVD, BaseModel, NeuralMF, SVD # , SVDppp # 导入解耦后的模型
 
 # 导入监控工具
 from moniter import monitor_function  # 假设监控代码保存在 monitor_util.py
@@ -115,14 +115,24 @@ def save_training_stats(
         except:
             f.write("系统信息获取失败\n")
 
-
 def save_predictions(df: pd.DataFrame, output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8") as f:
-        grouped = df.groupby("user")
+        # 先对 user 进行排序 
+        df['user'] = df['user'].astype(int)
+        df_sorted = df.sort_values(by="user")
+        grouped = df_sorted.groupby("user")
         for user, group in grouped:
             f.write(f"{user}|{len(group)}\n")
             for _, row in group.iterrows():
                 f.write(f"{row['item']}\t{row['prediction']:.4f}\n")
+
+# def save_predictions(df: pd.DataFrame, output_path: Path) -> None:
+#     with output_path.open("w", encoding="utf-8") as f:
+#         grouped = df.groupby("user")
+#         for user, group in grouped:
+#             f.write(f"{user}|{len(group)}\n")
+#             for _, row in group.iterrows():
+#                 f.write(f"{row['item']}\t{row['prediction']:.4f}\n")
 
 
 def train_and_predict(args: argparse.Namespace) -> BaseModel:
@@ -137,34 +147,47 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
     print(f"测试数据加载完成，共 {len(test_df)} 条记录需要预测")
 
     # 根据参数选择模型
-    if args.model == "BiasSVD":
+    if args.model == "BiasSVD": 
         ModelClass = BiasSVD 
+    elif args.model == "SVD": 
+        ModelClass = SVD 
     elif args.model == 'NeuralMF': 
         ModelClass = NeuralMF 
-    elif args.model == 'LightGCN': 
-        ModelClass = LightGCN 
-    elif args.model == 'SVDpp': 
-        ModelClass = SVDpp 
-    elif args.model == 'SVDppp': 
-        ModelClass = SVDppp 
-    elif args.model == 'BPRMF': 
-        ModelClass = BPRMF 
-    elif args.model == 'NGCF': 
-        ModelClass = NGCF 
-    elif args.model == 'NeuMF': 
-        ModelClass = NeuMF 
-    elif args.model == 'VAE_CF': 
-        ModelClass = VAE_CF 
     else:
         raise ValueError(f"未知模型类型: {args.model}")
 
-    # 划分训练/验证集
-    print("\n===== 划分训练集和验证集 =====")
-    train_part, val_part = train_test_split(train_df, test_size=0.2, random_state=42)
-    print(f"划分训练集 {len(train_part)} 条，验证集 {len(val_part)} 条")
 
+    if args.trainval: 
+        # 划分训练/验证集
+        print("\n===== 划分训练集和验证集 =====")
+        # train_part, val_part = train_test_split(train_df, test_size=0.2, random_state=42)
+        train_part, val_part = split_by_user(train_df, val_ratio=0.2, seed=42)
+        print(f"划分训练集 {len(train_part)} 条，验证集 {len(val_part)} 条")
+        # 初始化模型
+        model = ModelClass(
+            n_factors=args.factors,
+            lr=args.lr,
+            reg=args.reg,
+            n_epochs=args.epochs,
+            grad_clip=args.grad_clip,
+            rating_scale=(args.min_rating, args.max_rating),
+            verbose=args.verbose,
+        )
+
+        # 训练模型
+        print("开始训练模型,并且在验证集上测试...")
+        model.fit(train_part, val_data=val_part)
+        print("模型训练完成")
+
+        # 完整训练集 RMSE
+        full_train_rmse = model._evaluate(val_part)
+        print(f"验证集 RMSE: {full_train_rmse:.4f}")
+    else: 
+        print("没有启用TrainVal划分,对于性能进行验证集分析,如果启用使用trainval标识")
+    
+    print("\n===== 使用完整训练数据训练 =====") 
     # 初始化模型
-    model = ModelClass(
+    test_model = ModelClass(
         n_factors=args.factors,
         lr=args.lr,
         reg=args.reg,
@@ -173,24 +196,35 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
         rating_scale=(args.min_rating, args.max_rating),
         verbose=args.verbose,
     )
-
-    # 训练模型
-    print("开始训练模型...")
-    model.fit(train_part, val_data=val_part)
-    print("模型训练完成")
-
-    # 完整训练集 RMSE
-    full_train_rmse = model._evaluate(train_df)
-    print(f"完整训练集 RMSE: {full_train_rmse:.4f}")
-
+    test_model.fit(train_df) 
     # 预测并保存结果
-    print("开始生成预测结果...")
-    preds = model.predict(test_df)
+    print("开始利用完整的训练集训练的模型生成预测结果...")
+    preds = test_model.predict(test_df)
     test_df["prediction"] = preds
     save_predictions(test_df, Path(args.output))
     print(f"预测结果已保存至 {args.output}")
 
-    return model
+    return test_model
+ 
+def split_by_user(df: pd.DataFrame, val_ratio: float = 0.2, seed: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    np.random.seed(seed)
+    train_rows = []
+    val_rows = []
+
+    for user, group in df.groupby("user"):
+        indices = group.index.tolist()
+        np.random.shuffle(indices)
+
+        if len(indices) <= 1:
+            train_rows.extend(indices)
+        else:
+            val_count = max(1, int(len(indices) * val_ratio))
+            val_rows.extend(indices[:val_count])
+            train_rows.extend(indices[val_count:])
+
+    train_df = df.loc[train_rows].reset_index(drop=True)
+    val_df = df.loc[val_rows].reset_index(drop=True)
+    return train_df, val_df
 
 
 def main() -> None:
@@ -200,6 +234,7 @@ def main() -> None:
     parser.add_argument("--test", type=str, required=True)
     parser.add_argument("--output", type=str, default="./results/predictions.txt")
     parser.add_argument("--stats", type=str, default="./results/training_stats.txt")
+    parser.add_argument("--trainval", type=bool, default=False) 
 
     # 模型选择
     parser.add_argument("--model", type=str, default="bias_svd", help="选择使用的模型 (默认: bias_svd)")
@@ -246,10 +281,10 @@ def main() -> None:
     print(f"模型: {model.model_name}")
     print(f"总训练时间: {training_time:.2f} 秒")
     print(f"峰值内存使用: {max_memory:.2f} MB")
-    if model.rmse_history:
-        print(f"最终 Train RMSE: {model.rmse_history[-1]:.4f}, 最小 Train RMSE: {min(model.rmse_history):.4f}")
-    if model.val_rmse_history:
-        print(f"最终 Val RMSE: {model.val_rmse_history[-1]:.4f}, 最小 Val RMSE: {min(model.val_rmse_history):.4f}")
+    # if model.rmse_history: 
+    #     print(f"划分的 Train RMSE: {model.rmse_history[-1]:.4f}")
+    # if model.val_rmse_history:
+    #     print(f"划分的 Val RMSE: {model.val_rmse_history[-1]:.4f}")
 
     print("任务完成！")
 

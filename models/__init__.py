@@ -1,15 +1,16 @@
 # models/__init__.py
 
 from .BaseModel import BaseModel
-from .BiasSVD import BiasSVD
+from .BiasSVD import BiasSVD 
+from .SVD import SVD 
 from .NeuralMF import NeuralMF 
-from .LightGCN import LightGCN 
-from .SVDpp import SVDpp 
+# from .remove.LightGCN import LightGCN 
+# from .remove.SVDpp import SVDpp 
 # from .SVDppp import SVDppp 
-from .NGCF import NGCF 
-from .NeuMF import NeuMF 
-from .VAE_CF import VAE_CF 
-from .BPRMF import BPRMF 
+# from .remove.NGCF import NGCF 
+# from .remove.NeuMF import NeuMF 
+# from .remove.VAE_CF import VAE_CF 
+# from .remove.BPRMF import BPRMF 
 # 可选：添加其他模型导入
 # from .AnotherModel import AnotherModel
 
@@ -17,13 +18,14 @@ from .BPRMF import BPRMF
 __all__ = [
     "BaseModel",
     "BiasSVD", 
+    "SVD", 
     "NeuralMF", 
-    "LightGCN", 
-    "SVDpp", 
-    "SVDppp", 
-    "BPRMF", 
-    "NGCF", 
-    "NeuMF", 
-    "VAE_CF"
+    # "LightGCN", 
+    # "SVDpp", 
+    # "SVDppp", 
+    # "BPRMF", 
+    # "NGCF", 
+    # "NeuMF", 
+    # "VAE_CF"
     # 'AnotherModel',
 ]

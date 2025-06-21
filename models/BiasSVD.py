@@ -36,7 +36,12 @@ class BiasSVD(BaseModel):
         self.user_map: Dict[str, int] = {}
         self.item_map: Dict[str, int] = {}
         self.inv_user_map: Dict[int, str] = {}
-        self.inv_item_map: Dict[int, str] = {}
+        self.inv_item_map: Dict[int, str] = {} 
+        self.lr_schedule = "constant"  # 默认使用 warmup + 衰减策略
+        self.warmup_epochs = 5             # 前 5 轮线性升高学习率
+        self.decay_ratio = 0.1             # warmup 后学习率衰减到原来的 10%
+        self.step_drop = 0.5               # step_decay 模式下，每轮衰减为原来的 0.5 倍
+        self.step_every = 20              # step_decay 每 10 轮衰减一次
 
     def _predict_pair_idx(self, u_idx: int, i_idx: int) -> float:
         return (
@@ -62,6 +67,21 @@ class BiasSVD(BaseModel):
             se += (r - pred) ** 2
             cnt += 1
         return math.sqrt(se / cnt) if cnt > 0 else float("nan")
+    
+    def get_current_lr(self, epoch):
+        if self.lr_schedule == "constant":
+            return self.lr 
+        if self.lr_schedule == "warmup_decay":
+            if epoch < self.warmup_epochs:
+                return self.lr * (epoch + 1) / self.warmup_epochs
+            else:
+                decay_epochs = self.n_epochs - self.warmup_epochs
+                decay_progress = (epoch - self.warmup_epochs) / max(1, decay_epochs)
+                return self.lr * ((1 - decay_progress) + self.decay_ratio * decay_progress)
+        elif self.lr_schedule == "step_decay":
+            return self.lr * (self.step_drop ** (epoch // self.step_every))
+        else:
+            raise ValueError(f"Unknown lr_schedule: {self.lr_schedule}")
 
     def fit(
         self,
@@ -89,24 +109,27 @@ class BiasSVD(BaseModel):
         train["u_idx"] = train["user"].map(self.user_map)
         train["i_idx"] = train["item"].map(self.item_map)
 
-        epoch_bar = trange(self.n_epochs, desc="训练进度", disable=not self.verbose)
-        for epoch in epoch_bar:
+        epoch_bar = trange(self.n_epochs, desc="训练进度", disable=not self.verbose) 
+        cur_lr = self.lr 
+        for epoch in epoch_bar: 
+            # Warm-up + 衰减策略
+            cur_lr = self.get_current_lr(epoch) 
             df = train.sample(frac=1).reset_index(drop=True)
             for _, row in df.iterrows():
                 u, i, r = int(row["u_idx"]), int(row["i_idx"]), row["rating"]
                 pred = self._predict_pair_idx(u, i)
-                e = r - pred
+                e = r - pred 
                 # 更新偏置
-                ub = np.clip(e - self.reg * self.user_biases[u], -self.grad_clip, self.grad_clip)
-                ib = np.clip(e - self.reg * self.item_biases[i], -self.grad_clip, self.grad_clip)
-                self.user_biases[u] += self.lr * ub
-                self.item_biases[i] += self.lr * ib
+                ub = np.clip(2 * e - self.reg * self.user_biases[u], -self.grad_clip, self.grad_clip)
+                ib = np.clip(2 * e - self.reg * self.item_biases[i], -self.grad_clip, self.grad_clip)
+                self.user_biases[u] += cur_lr * ub
+                self.item_biases[i] += cur_lr * ib
                 # 更新因子
                 uf, vf = self.user_factors[u], self.item_factors[i]
-                ug = np.clip(e * vf - self.reg * uf, -self.grad_clip, self.grad_clip)
-                vg = np.clip(e * uf - self.reg * vf, -self.grad_clip, self.grad_clip)
-                self.user_factors[u] += self.lr * ug
-                self.item_factors[i] += self.lr * vg
+                ug = np.clip(2 * e * vf - self.reg * uf, -self.grad_clip, self.grad_clip)
+                vg = np.clip(2 * e * uf - self.reg * vf, -self.grad_clip, self.grad_clip)
+                self.user_factors[u] += cur_lr * ug
+                self.item_factors[i] += cur_lr * vg
 
             # 每轮评估
             train_rmse = self._evaluate(train_data)
@@ -120,6 +143,7 @@ class BiasSVD(BaseModel):
                 test_rmse = self._evaluate(test_data)
                 self.test_rmse_history.append(test_rmse)
                 postfix["TestRMSE"] = f"{test_rmse:.4f}"
+            postfix["lr"] = cur_lr 
             epoch_bar.set_postfix(postfix)
 
     def predict(self, data):

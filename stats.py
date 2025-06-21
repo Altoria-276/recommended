@@ -1,67 +1,74 @@
-def count_dataset_stats(file_path: str) -> tuple[int, int, int, int, int]:
-    """
-    统计数据集的基本信息
+import numpy as np
+from collections import defaultdict, Counter
+import pandas as pd
 
-    参数:
-        file_path: 数据文件路径
+def count_dataset_stats(file_path: str):
+    original_user_ids = set()
+    original_item_ids = set()
+    all_ratings = []
 
-    返回:
-        包含以下统计信息的元组:
-            - 用户数量
-            - 物品数量
-            - 总评分记录数
-            - 最大用户ID
-            - 最大物品ID
-            - 最低评分
-            - 最高评分
-    """
-    user_ids: set[int] = set()
-    item_ids: set[int] = set()
-    total_ratings: int = 0
-    max_user_id: int = 0
-    max_item_id: int = 0
-    min_rating: float = float("inf")
-    max_rating: float = float("-inf")
+    user_rating_dict = defaultdict(list)
+    item_rating_dict = defaultdict(list)
 
     with open(file_path, "r") as f:
         while True:
-            # 读取用户行
-            user_line: str = f.readline().strip()
-            if not user_line:  # 文件结束
+            user_line = f.readline()
+            if not user_line:
                 break
 
-            # 处理用户行
+            user_line = user_line.strip()
             if "|" not in user_line:
                 continue
 
-            user_id_str: str
-            num_ratings_str: str
             user_id_str, num_ratings_str = user_line.split("|")
+            user_id = int(user_id_str)
+            num_ratings = int(num_ratings_str)
 
-            user_id: int = int(user_id_str)
-            num_ratings: int = int(num_ratings_str)
+            original_user_ids.add(user_id)
 
-            user_ids.add(user_id)
-            if user_id > max_user_id:
-                max_user_id = user_id
+            for i in range(num_ratings): 
+                rating_line = f.readline().strip() 
+                parts = rating_line.split()
+                item_id = int(parts[0])
+                rating = float(parts[1])
 
-            total_ratings += num_ratings
+                original_item_ids.add(item_id)
 
-            # 处理该用户的评分行
-            for _ in range(num_ratings):
-                rating_line: str = f.readline().strip()
-                if not rating_line:
-                    break
+                user_rating_dict[user_id].append(rating)
+                item_rating_dict[item_id].append(rating)
+                all_ratings.append(rating)
 
-                # 提取物品ID
-                parts: list[str] = rating_line.split()
-                item_id: int = int(parts[0])
+    # 建立 ID 重映射（连续编号）
+    user_id_map = {uid: idx for idx, uid in enumerate(sorted(original_user_ids))}
+    item_id_map = {iid: idx for idx, iid in enumerate(sorted(original_item_ids))}
 
-                item_ids.add(item_id)
-                if item_id > max_item_id:
-                    max_item_id = item_id
+    num_users = len(user_id_map)
+    num_items = len(item_id_map)
+    total_ratings = len(all_ratings)
+    rating_array = np.array(all_ratings)
+    sparsity = 1 - total_ratings / (num_users * num_items)
 
-    return len(user_ids), len(item_ids), total_ratings, max_user_id, max_item_id
+    # 每个评分值的统计信息
+    rating_counter = Counter(all_ratings)
+    score_stats = {f"评分 {score:.1f}": {
+        "数量": count,
+        "占比": count / total_ratings
+    } for score, count in sorted(rating_counter.items())}
+
+    # 汇总信息
+    result = {
+        "用户数量（重新编号后）": num_users,
+        "项目数量（重新编号后）": num_items,
+        "总评分记录数": total_ratings,
+        "评分矩阵稀疏度": sparsity,
+        "评分最小值": rating_array.min(),
+        "评分最大值": rating_array.max(),
+        "评分均值": rating_array.mean(),
+        "评分标准差": np.sqrt(np.mean((rating_array - rating_array.mean()) ** 2)), 
+    }
+
+    result.update(score_stats)
+    return result
 
 
 if __name__ == "__main__":
@@ -71,17 +78,13 @@ if __name__ == "__main__":
         print("使用方法: python stats.py <数据文件路径>")
         sys.exit(1)
 
-    file_path: str = sys.argv[1]
-    num_users: int
-    num_items: int
-    num_ratings: int
-    max_user: int
-    max_item: int
+    file_path = sys.argv[1] 
+    stats = count_dataset_stats(file_path)
 
-    num_users, num_items, num_ratings, max_user, max_item = count_dataset_stats(file_path)
-
-    print(f"用户数量: {num_users}")
-    print(f"物品数量: {num_items}")
-    print(f"评分记录数: {num_ratings}")
-    print(f"最大用户ID: {max_user}")
-    print(f"最大物品ID: {max_item}")
+    for k, v in stats.items():
+        if isinstance(v, dict):
+            print(f"{k}:")
+            for sub_k, sub_v in v.items():
+                print(f"  {sub_k}: {sub_v:.4f}" if isinstance(sub_v, float) else f"  {sub_k}: {sub_v}")
+        else:
+            print(f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}")

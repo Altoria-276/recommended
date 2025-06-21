@@ -136,8 +136,8 @@ class NeuralMF(BaseModel):
                 pred = self._predict_pair_idx(u, i)
                 e = r - pred
                 # 更新偏置
-                self.user_biases[u] += self.lr * np.clip(e - self.reg * self.user_biases[u], -self.grad_clip, self.grad_clip)
-                self.item_biases[i] += self.lr * np.clip(e - self.reg * self.item_biases[i], -self.grad_clip, self.grad_clip)
+                self.user_biases[u] += self.lr * np.clip(2 * e - self.reg * self.user_biases[u], -self.grad_clip, self.grad_clip)
+                self.item_biases[i] += self.lr * np.clip(2 * e - self.reg * self.item_biases[i], -self.grad_clip, self.grad_clip)
                 # 更新MLP参数
                 x = np.concatenate([self.user_factors[u], self.item_factors[i]])
                 h = np.tanh(self.W1 @ x + self.b1)
@@ -148,8 +148,8 @@ class NeuralMF(BaseModel):
                 self.W1 -= self.lr * (grad_h[:, None] * x[None, :] + self.reg * self.W1)
                 self.b1 -= self.lr * grad_h
                 grad_x = self.W1.T @ grad_h
-                self.user_factors[u] -= self.lr * (grad_x[:self.n_factors] - self.reg * self.user_factors[u])
-                self.item_factors[i] -= self.lr * (grad_x[self.n_factors:] - self.reg * self.item_factors[i])
+                self.user_factors[u] -= self.lr * (grad_x[:self.n_factors] + self.reg * self.user_factors[u])
+                self.item_factors[i] -= self.lr * (grad_x[self.n_factors:] + self.reg * self.item_factors[i])
 
             # 记录RMSE
             self.rmse_history.append(self._evaluate(train_data))
