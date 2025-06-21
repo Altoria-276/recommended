@@ -1,0 +1,3 @@
+SVD 17.7633 
+BaisSVD 16.9032 
+NeuralMF 17.4075 
