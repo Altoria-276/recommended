@@ -325,15 +325,15 @@ $$
 
 | 指标           | 数值       |
 |----------------|------------|
-| 内存占用 (MB)  | 0.0003     |
-| 运行时间 (s)   | 17.2353    |
+| 内存占用 (MB)  | 185.89     |
+| 运行时间 (s)   | 81.86    |
 
 #### 使用完整训练数据：
 
 | 指标           | 数值       |
 |----------------|------------|
-| 内存占用 (MB)  | 0.0003     |
-| 运行时间 (s)   | 17.2353    |
+| 内存占用 (MB)  | 192.09     |
+| 运行时间 (s)   | 101.32    |
 
 > 注：由于模型较为轻量，整体内存占用极低，运行速度较快，适合在资源有限的环境下部署与测试。
 
@@ -362,12 +362,12 @@ $$
 运行以下命令可完成 BiasSVD 模型的训练并在验证集上评估性能：
 
 ```bash 
-python main.py  --train data/train.txt --test data/test.txt  --output results/Predictions.txt --stats results/TrainingStats.txt --min_rating 0  --max_rating 100 --lr 0.0005 --reg 0.1 --grad_clip 1000 --factors 320 --epochs 16 --model BiasSVD --trainval 
+python main.py  --train data/train.txt --test data/test.txt  --output results/Predictions.txt --stats results/TrainingStats.txt --min_rating 0  --max_rating 100 --lr 0.0005 --reg 0.1 --grad_clip 1000 --factors 320 --epochs 16 --model BiasSVD --monitor --trainval  
 ``` 
 #### 训练 + 测试：
 
 运行以下命令可完成 BiasSVD 模型的训练并对测试集进行预测：
  
 ```bash 
-python main.py  --train data/train.txt --test data/test.txt  --output results/Predictions.txt --stats results/TrainingStats.txt --min_rating 0  --max_rating 100 --lr 0.0005 --reg 0.1 --grad_clip 1000 --factors 320 --epochs 16 --model BiasSVD
+python main.py  --train data/train.txt --test data/test.txt  --output results/Predictions.txt --stats results/TrainingStats.txt --min_rating 0  --max_rating 100 --lr 0.0005 --reg 0.1 --grad_clip 1000 --factors 320 --epochs 16 --model BiasSVD --monitor 
 ``` 

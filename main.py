@@ -87,13 +87,10 @@ def save_training_stats(
 
         if model.rmse_history:
             f.write(f"最终 Train RMSE: {model.rmse_history[-1]:.4f}\n")
-            f.write(f"最小 Train RMSE: {min(model.rmse_history):.4f}\n")
         if model.val_rmse_history:
             f.write(f"最终 Val RMSE: {model.val_rmse_history[-1]:.4f}\n")
-            f.write(f"最小 Val RMSE: {min(model.val_rmse_history):.4f}\n")
         if model.test_rmse_history:
             f.write(f"最终 Test RMSE: {model.test_rmse_history[-1]:.4f}\n")
-            f.write(f"最小 Test RMSE: {min(model.test_rmse_history):.4f}\n")
 
         f.write("\n===== RMSE 历史记录 =====\n")
         f.write("Epoch,TrainRMSE,ValRMSE,TestRMSE\n")
@@ -182,32 +179,34 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
         # 完整训练集 RMSE
         full_train_rmse = model._evaluate(val_part)
         print(f"验证集 RMSE: {full_train_rmse:.4f}")
+        return model 
     else: 
-        print("没有启用TrainVal划分,对于性能进行验证集分析,如果启用使用trainval标识")
-    
-    print("\n===== 使用完整训练数据训练 =====") 
-    # 初始化模型
-    test_model = ModelClass(
-        n_factors=args.factors,
-        lr=args.lr,
-        reg=args.reg,
-        n_epochs=args.epochs,
-        grad_clip=args.grad_clip,
-        rating_scale=(args.min_rating, args.max_rating),
-        verbose=args.verbose,
-    )
-    test_model.fit(train_df) 
-    # 预测并保存结果
-    print("开始利用完整的训练集训练的模型生成预测结果...")
-    preds = test_model.predict(test_df)
-    test_df["prediction"] = preds
-    save_predictions(test_df, Path(args.output))
-    print(f"预测结果已保存至 {args.output}")
+        print("没有启用TrainVal划分,若要对于性能进行验证集分析,如果启用使用trainval标识") 
 
-    return test_model
+    if not args.nottraintest or not args.trainval: 
+        print("\n===== 使用完整训练数据训练 =====") 
+        # 初始化模型
+        test_model = ModelClass(
+            n_factors=args.factors,
+            lr=args.lr,
+            reg=args.reg,
+            n_epochs=args.epochs,
+            grad_clip=args.grad_clip,
+            rating_scale=(args.min_rating, args.max_rating),
+            verbose=args.verbose,
+        )
+        test_model.fit(train_df) 
+        # 预测并保存结果
+        print("开始利用完整的训练集训练的模型生成预测结果...")
+        preds = test_model.predict(test_df)
+        test_df["prediction"] = preds
+        save_predictions(test_df, Path(args.output))
+        print(f"预测结果已保存至 {args.output}") 
+        return test_model 
+    return None 
  
 def split_by_user(df: pd.DataFrame, val_ratio: float = 0.2, seed: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    np.random.seed(seed)
+    np.random.seed(seed) 
     train_rows = []
     val_rows = []
 
@@ -234,7 +233,8 @@ def main() -> None:
     parser.add_argument("--test", type=str, required=True)
     parser.add_argument("--output", type=str, default="./results/predictions.txt")
     parser.add_argument("--stats", type=str, default="./results/training_stats.txt")
-    parser.add_argument("--trainval", type=bool, default=False) 
+    parser.add_argument("--trainval", default=False, action="store_true") 
+    parser.add_argument("--nottraintest", default=False, action="store_true") 
 
     # 模型选择
     parser.add_argument("--model", type=str, default="bias_svd", help="选择使用的模型 (默认: bias_svd)")
