@@ -1,6 +1,6 @@
 import numpy as np
 from collections import defaultdict, Counter
-import pandas as pd
+
 
 def count_dataset_stats(file_path: str):
     original_user_ids = set()
@@ -26,8 +26,8 @@ def count_dataset_stats(file_path: str):
 
             original_user_ids.add(user_id)
 
-            for i in range(num_ratings): 
-                rating_line = f.readline().strip() 
+            for i in range(num_ratings):
+                rating_line = f.readline().strip()
                 parts = rating_line.split()
                 item_id = int(parts[0])
                 rating = float(parts[1])
@@ -50,10 +50,7 @@ def count_dataset_stats(file_path: str):
 
     # 每个评分值的统计信息
     rating_counter = Counter(all_ratings)
-    score_stats = {f"评分 {score:.1f}": {
-        "数量": count,
-        "占比": count / total_ratings
-    } for score, count in sorted(rating_counter.items())}
+    score_stats = {f"评分 {score:.1f}": {"数量": count, "占比": count / total_ratings} for score, count in sorted(rating_counter.items())}
 
     # 汇总信息
     result = {
@@ -64,7 +61,7 @@ def count_dataset_stats(file_path: str):
         "评分最小值": rating_array.min(),
         "评分最大值": rating_array.max(),
         "评分均值": rating_array.mean(),
-        "评分标准差": np.sqrt(np.mean((rating_array - rating_array.mean()) ** 2)), 
+        "评分标准差": np.sqrt(np.mean((rating_array - rating_array.mean()) ** 2)),
     }
 
     result.update(score_stats)
@@ -78,7 +75,7 @@ if __name__ == "__main__":
         print("使用方法: python stats.py <数据文件路径>")
         sys.exit(1)
 
-    file_path = sys.argv[1] 
+    file_path = sys.argv[1]
     stats = count_dataset_stats(file_path)
 
     for k, v in stats.items():

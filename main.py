@@ -2,16 +2,14 @@
 import numpy as np
 import pandas as pd
 import re
-import math
 import time
-import os
 import argparse
 from typing import Dict, List, Tuple, Optional, Union
 from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 # 导入模型
-from models import BiasSVD, BaseModel, NeuralMF, SVD # , SVDppp # 导入解耦后的模型
+from models import BiasSVD, BaseModel, NeuralMF, SVD  # , SVDppp # 导入解耦合后的模型
 
 # 导入监控工具
 from moniter import monitor_function  # 假设监控代码保存在 monitor_util.py
@@ -112,16 +110,18 @@ def save_training_stats(
         except:
             f.write("系统信息获取失败\n")
 
+
 def save_predictions(df: pd.DataFrame, output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8") as f:
-        # 先对 user 进行排序 
-        df['user'] = df['user'].astype(int)
+        # 先对 user 进行排序
+        df["user"] = df["user"].astype(int)
         df_sorted = df.sort_values(by="user")
         grouped = df_sorted.groupby("user")
         for user, group in grouped:
             f.write(f"{user}|{len(group)}\n")
             for _, row in group.iterrows():
                 f.write(f"{row['item']}\t{row['prediction']:.4f}\n")
+
 
 # def save_predictions(df: pd.DataFrame, output_path: Path) -> None:
 #     with output_path.open("w", encoding="utf-8") as f:
@@ -137,29 +137,28 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
     # 加载数据
     print(f"正在加载训练数据: {args.train}")
     train_df = parse_data(args.train, has_ratings=True)
-    print(f"训练数据加载完成，共 {len(train_df)} 条记录，评分范围 {train_df['rating'].min():.1f}-{train_df['rating'].max():.1f}")
+    print(f"训练数据加载完成,共 {len(train_df)} 条记录,评分范围 {train_df['rating'].min():.1f}-{train_df['rating'].max():.1f}")
 
     print(f"正在加载测试数据: {args.test}")
     test_df = parse_data(args.test, has_ratings=False)
-    print(f"测试数据加载完成，共 {len(test_df)} 条记录需要预测")
+    print(f"测试数据加载完成,共 {len(test_df)} 条记录需要预测")
 
     # 根据参数选择模型
-    if args.model == "BiasSVD": 
-        ModelClass = BiasSVD 
-    elif args.model == "SVD": 
-        ModelClass = SVD 
-    elif args.model == 'NeuralMF': 
-        ModelClass = NeuralMF 
+    if args.model == "BiasSVD":
+        ModelClass = BiasSVD
+    elif args.model == "SVD":
+        ModelClass = SVD
+    elif args.model == "NeuralMF":
+        ModelClass = NeuralMF
     else:
         raise ValueError(f"未知模型类型: {args.model}")
 
-
-    if args.trainval: 
+    if args.trainval:
         # 划分训练/验证集
         print("\n===== 划分训练集和验证集 =====")
         # train_part, val_part = train_test_split(train_df, test_size=0.2, random_state=42)
         train_part, val_part = split_by_user(train_df, val_ratio=0.2, seed=42)
-        print(f"划分训练集 {len(train_part)} 条，验证集 {len(val_part)} 条")
+        print(f"划分训练集 {len(train_part)} 条,验证集 {len(val_part)} 条")
         # 初始化模型
         model = ModelClass(
             n_factors=args.factors,
@@ -179,12 +178,12 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
         # 完整训练集 RMSE
         full_train_rmse = model._evaluate(val_part)
         print(f"验证集 RMSE: {full_train_rmse:.4f}")
-        return model 
-    else: 
-        print("没有启用TrainVal划分,若要对于性能进行验证集分析,如果启用使用trainval标识") 
+        return model
+    else:
+        print("没有启用TrainVal划分,若要对于性能进行验证集分析,如果启用使用trainval标识")
 
-    if not args.nottraintest or not args.trainval: 
-        print("\n===== 使用完整训练数据训练 =====") 
+    if not args.nottraintest or not args.trainval:
+        print("\n===== 使用完整训练数据训练 =====")
         # 初始化模型
         test_model = ModelClass(
             n_factors=args.factors,
@@ -195,18 +194,19 @@ def train_and_predict(args: argparse.Namespace) -> BaseModel:
             rating_scale=(args.min_rating, args.max_rating),
             verbose=args.verbose,
         )
-        test_model.fit(train_df) 
+        test_model.fit(train_df)
         # 预测并保存结果
         print("开始利用完整的训练集训练的模型生成预测结果...")
         preds = test_model.predict(test_df)
         test_df["prediction"] = preds
         save_predictions(test_df, Path(args.output))
-        print(f"预测结果已保存至 {args.output}") 
-        return test_model 
-    return None 
- 
+        print(f"预测结果已保存至 {args.output}")
+        return test_model
+    return None
+
+
 def split_by_user(df: pd.DataFrame, val_ratio: float = 0.2, seed: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    np.random.seed(seed) 
+    np.random.seed(seed)
     train_rows = []
     val_rows = []
 
@@ -229,32 +229,39 @@ def split_by_user(df: pd.DataFrame, val_ratio: float = 0.2, seed: int = 42) -> T
 def main() -> None:
     parser = argparse.ArgumentParser(description="基于矩阵分解的评分预测系统")
     # 数据参数
-    parser.add_argument("--train", type=str, required=True)
-    parser.add_argument("--test", type=str, required=True)
-    parser.add_argument("--output", type=str, default="./results/predictions.txt")
-    parser.add_argument("--stats", type=str, default="./results/training_stats.txt")
-    parser.add_argument("--trainval", default=False, action="store_true") 
-    parser.add_argument("--nottraintest", default=False, action="store_true") 
+    parser.add_argument("--train", type=str, required=True, help="训练数据文件路径")
+    parser.add_argument("--test", type=str, required=True, help="测试数据文件路径")
+    parser.add_argument("--output", type=str, default="./results/predictions.txt", help="预测结果输出路径,默认:./results/predictions.txt")
+    parser.add_argument(
+        "--stats", type=str, default="./results/training_stats.txt", help="训练统计信息保存路径,默认:./results/training_stats.txt"
+    )
+    parser.add_argument("--trainval", default=False, action="store_true", help="启用训练集/验证集划分(比例8:2)")
+    parser.add_argument("--nottraintest", default=False, action="store_true", help="禁用完整训练集训练+测试预测流程")
 
     # 模型选择
-    parser.add_argument("--model", type=str, default="bias_svd", help="选择使用的模型 (默认: bias_svd)")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="BiasSVD",
+        help="选择模型:BiasSVD(带偏置矩阵分解), SVD(基础矩阵分解), NeuralMF(神经协同过滤),默认:BiasSVD",
+    )
 
     # 模型参数
-    parser.add_argument("--factors", type=int, default=20)
-    parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--lr", type=float, default=0.0005)
-    parser.add_argument("--reg", type=float, default=0.1)
-    parser.add_argument("--grad_clip", type=float, default=100.0)
-    parser.add_argument("--min_rating", type=float, default=0.0)
-    parser.add_argument("--max_rating", type=float, default=100.0)
+    parser.add_argument("--factors", type=int, default=20, help="隐因子维度(矩阵分解的潜在特征数),默认:20")
+    parser.add_argument("--epochs", type=int, default=50, help="训练总轮数,默认:50")
+    parser.add_argument("--lr", type=float, default=0.0005, help="学习率,默认:0.0005")
+    parser.add_argument("--reg", type=float, default=0.1, help="L2正则化系数,默认:0.1")
+    parser.add_argument("--grad_clip", type=float, default=100.0, help="梯度裁剪阈值,防止梯度爆炸,默认:100.0")
+    parser.add_argument("--min_rating", type=float, default=0.0, help="评分下限(预测结果截断),默认:0.0")
+    parser.add_argument("--max_rating", type=float, default=100.0, help="评分上限(预测结果截断),默认:100.0")
 
     # 训练参数
-    parser.add_argument("--monitor", action="store_true", help="启用内存和时间监控")
-    parser.add_argument("--verbose", type=bool, default=True, help="显示训练进度")
+    parser.add_argument("--monitor", action="store_true", help="启用内存和时间监控(记录峰值内存和训练耗时)")
+    parser.add_argument("--verbose", type=bool, default=True, help="显示训练进度条和指标(True/False),默认:True")
 
     args = parser.parse_args()
 
-    print("基于矩阵分解的评分预测系统 - 内存监控版")
+    print("基于矩阵分解的评分预测系统")
     print(f"使用模型: {args.model}")
 
     # 初始化监控数据
@@ -281,7 +288,7 @@ def main() -> None:
     print(f"模型: {model.model_name}")
     print(f"总训练时间: {training_time:.2f} 秒")
     print(f"峰值内存使用: {max_memory:.2f} MB")
-    # if model.rmse_history: 
+    # if model.rmse_history:
     #     print(f"划分的 Train RMSE: {model.rmse_history[-1]:.4f}")
     # if model.val_rmse_history:
     #     print(f"划分的 Val RMSE: {model.val_rmse_history[-1]:.4f}")
